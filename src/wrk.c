@@ -39,7 +39,7 @@ static const struct http_parser_settings parser_settings = {
 
 static volatile sig_atomic_t stop = 0;
 
-static void print_as_csv(stats *, stats *, uint64_t, uint64_t);
+static void print_as_csv(stats *, stats *, uint64_t, uint64_t, char *);
 
 static void handler(int sig) {
     stop = 1;
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
     if (cfg.latency) print_stats_latency(statistics.latency);
     */
 
-    print_as_csv(statistics.latency, statistics.requests, complete, bytes);
+    print_as_csv(statistics.latency, statistics.requests, complete, bytes, url);
 
     char *runtime_msg = format_time_us(runtime_us);
 
@@ -625,7 +625,7 @@ static void print_stats_latency(stats *stats) {
     }
 }
 
-static void print_as_csv(stats *latency, stats *requests, uint64_t complete, uint64_t bytes) {
+static void print_as_csv(stats *latency, stats *requests, uint64_t complete, uint64_t bytes, char *url) {
     printf("%ld, %ld, %ld, ", cfg.threads, cfg.connections, cfg.duration);
     {
         stats *stats = latency;
@@ -643,6 +643,6 @@ static void print_as_csv(stats *latency, stats *requests, uint64_t complete, uin
 
         printf("%.8Lf, %.8Lf, ", mean/1000000, stdev/1000000);
     }
-    printf("%ld, %ld", complete, bytes);
+    printf("%ld, %ld, %s", complete, bytes, url);
     printf("\n");
 }
