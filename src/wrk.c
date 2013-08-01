@@ -39,6 +39,8 @@ static const struct http_parser_settings parser_settings = {
 
 static volatile sig_atomic_t stop = 0;
 
+static void print_as_csv(stats *, stats *, uint64_t, uint64_t);
+
 static void handler(int sig) {
     stop = 1;
 }
@@ -160,8 +162,8 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &sa, NULL);
 
     char *time = format_time_s(cfg.duration);
-    printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
+    //printf("Running %s test @ %s\n", time, url);
+    //printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
@@ -187,25 +189,31 @@ int main(int argc, char **argv) {
     long double req_per_s   = complete   / runtime_s;
     long double bytes_per_s = bytes      / runtime_s;
 
+    /*
     print_stats_header();
     print_stats("Latency", statistics.latency, format_time_us);
     print_stats("Req/Sec", statistics.requests, format_metric);
     if (cfg.latency) print_stats_latency(statistics.latency);
+    */
+
+    print_as_csv(statistics.latency, statistics.requests, complete, bytes);
 
     char *runtime_msg = format_time_us(runtime_us);
 
+    /*
     printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
     if (errors.connect || errors.read || errors.write || errors.timeout) {
         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
                errors.connect, errors.read, errors.write, errors.timeout);
     }
+    */
 
-    if (errors.status) {
-        printf("  Non-2xx or 3xx responses: %d\n", errors.status);
-    }
+    //if (errors.status) {
+    //    printf("  Non-2xx or 3xx responses: %d\n", errors.status);
+    //}
 
-    printf("Requests/sec: %9.2Lf\n", req_per_s);
-    printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
+    //printf("Requests/sec: %9.2Lf\n", req_per_s);
+    //printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
 
     return 0;
 }
@@ -615,4 +623,26 @@ static void print_stats_latency(stats *stats) {
         print_units(n, format_time_us, 10);
         printf("\n");
     }
+}
+
+static void print_as_csv(stats *latency, stats *requests, uint64_t complete, uint64_t bytes) {
+    printf("%ld, %ld, %ld, ", cfg.threads, cfg.connections, cfg.duration);
+    {
+        stats *stats = latency;
+        uint64_t max = stats->max;
+        long double mean  = stats_summarize(stats);
+        long double stdev = stats_stdev(stats, mean);
+
+        printf("%.8Lf, %.8Lf, ", mean/1000000, stdev/1000000);
+    }
+    {
+        stats *stats = requests;
+        uint64_t max = stats->max;
+        long double mean  = stats_summarize(stats);
+        long double stdev = stats_stdev(stats, mean);
+
+        printf("%.8Lf, %.8Lf, ", mean/1000000, stdev/1000000);
+    }
+    printf("%ld, %ld", complete, bytes);
+    printf("\n");
 }
